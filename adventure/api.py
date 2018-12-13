@@ -9,7 +9,12 @@ from rest_framework.decorators import api_view
 import json
 
 # instantiate pusher
-pusher = Pusher(app_id=config('PUSHER_APP_ID'), key=config('PUSHER_KEY'), secret=config('PUSHER_SECRET'), cluster=config('PUSHER_CLUSTER'))
+pusher = Pusher(
+    app_id=config('PUSHER_APP_ID'), 
+    key=config('PUSHER_KEY'), 
+    secret=config('PUSHER_SECRET'), 
+    cluster=config('PUSHER_CLUSTER')
+    )
 
 @csrf_exempt
 @api_view(["GET"])
@@ -23,7 +28,7 @@ def initialize(request):
     return JsonResponse({'uuid': uuid, 'name':player.user.username, 'title':room.title, 'description':room.description, 'players':players}, safe=True)
 
 
-# @csrf_exempt
+@csrf_exempt
 @api_view(["POST"])
 def move(request):
     dirs={"n": "north", "s": "south", "e": "east", "w": "west"}
@@ -65,3 +70,22 @@ def move(request):
 def say(request):
     # IMPLEMENT
     return JsonResponse({'error':"Not yet implemented"}, safe=True, status=500)
+
+@csrf_exempt
+@api_view(["POST"])
+def shout(request):
+    player = request.user.player
+    player_id = player.id
+    data = json.loads(request.body)
+    shout = data["shout"]
+    allPlayerUUIDs = player.allPlayerUUIDs(player_id)
+
+    for p_uuid in allPlayerUUIDs:
+        pusher.trigger(
+            f"p-channel-{p_uuid}",
+            "broadcast",
+            {"shout": f"{player.user.username} shouts {shout}"},
+        )
+    return JsonResponse(
+        {"shout": f"{player.user.username} shouts {shout}"}, safe=True, status=200
+    )
