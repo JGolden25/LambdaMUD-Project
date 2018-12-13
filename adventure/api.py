@@ -68,7 +68,19 @@ def move(request):
 @csrf_exempt
 @api_view(["POST"])
 def say(request):
-    # IMPLEMENT
+    player = request.user.player
+    player_id = player.id
+    data = json.loads(request.body)
+    message = data["message"]
+    room = player.room()
+    currentPlayerUUIDs = room.playerUUIDs(player_id)
+
+    for p_uuid in currentPlayerUUIDs:
+        pusher.trigger(
+            f"p-channel-{p_uuid}",
+            "broadcast",
+            {"message": f"{player.user.username} says {message}"},
+        )
     return JsonResponse({'error':"Not yet implemented"}, safe=True, status=500)
 
 @csrf_exempt
@@ -88,4 +100,49 @@ def shout(request):
         )
     return JsonResponse(
         {"shout": f"{player.user.username} shouts {shout}"}, safe=True, status=200
+    )
+
+@csrf_exempt
+@api_view(["POST"])
+def shout(request):
+    player = request.user.player
+    player_id = player.id
+    data = json.loads(request.body)
+    shout = data["shout"]
+    allPlayerUUIDs = player.allPlayerUUIDs(player_id)
+
+    for p_uuid in allPlayerUUIDs:
+        pusher.trigger(
+            f"p-channel-{p_uuid}",
+            "broadcast",
+            {"shout": f"{player.user.username} shouts {shout}"},
+        )
+    return JsonResponse(
+        {"shout": f"{player.user.username} shouts {shout}"}, safe=True, status=200
+    )
+
+
+@csrf_exempt
+@api_view(["GET"])
+def players(request):
+    player = request.user.player
+    player_id = player.id
+    allPlayerNames = player.allPlayerNames(player_id)
+    return JsonResponse({"allPlayerNames": allPlayerNames}, safe=True, status=200)
+
+
+@csrf_exempt
+@api_view(["POST"])
+def whisper(request):
+    player = request.user.player
+    data = json.loads(request.body)
+    whisperTarget = data["playerName"]
+    whisper = data["whisper"]
+    pusher.trigger(
+        f"p-channel-{whisperTarget}",
+        "broadcast",
+        {"whisper": f"{player.user.username} whispers: {whisper}"},
+    )
+    return JsonResponse(
+        {"whisper": f"You whisper {whisperTarget}: {whisper}"}, safe=True, status=200
     )
